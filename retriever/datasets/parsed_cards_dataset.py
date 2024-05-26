@@ -46,8 +46,8 @@ class ParsedCardsDataset(Dataset):
 
     def __getitem__(self, index):
         question, answer = self.data[index]
-        print(question)
-        print(answer)
+        # print(question)
+        # print(answer)
         lines = [
             "query: " + question, 
             "passage: " + answer
@@ -55,13 +55,20 @@ class ParsedCardsDataset(Dataset):
         encoded = self.tokenizer(
             lines, padding=True, truncation=True, 
             max_length=self.max_length, return_tensors="pt")
-        return encoded
+        query_input_ids = encoded["input_ids"][0]
+        query_attention_mask = encoded["attention_mask"][0]
+        passage_input_ids = encoded["input_ids"][1]
+        passage_attention_mask = encoded["attention_mask"][1]
+        return {
+            "query_input_ids": query_input_ids,
+            "query_attention_mask": query_attention_mask,
+            "passage_input_ids": passage_input_ids,
+            "passage_attention_mask": passage_attention_mask
+        }
         
-        
-
         
 if __name__ == "__main__":
     import transformers
     tokenizer = transformers.AutoTokenizer.from_pretrained('intfloat/multilingual-e5-large')
     dataset = ParsedCardsDataset("retriever/data/internal_all.csv", tokenizer=tokenizer, max_length=512)
-    pprint(dataset[0]["input_ids"].shape)
+    pprint(dataset[0]["query_input_ids"])
