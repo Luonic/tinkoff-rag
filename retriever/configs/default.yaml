@@ -53,7 +53,7 @@ model:
 
 train:
   all_folds: true
-  lr: 3e-4
+  lr: 1e-4
   grad_accumulation_steps: 1 # 10
   max_epochs: 50
   optimizer:
