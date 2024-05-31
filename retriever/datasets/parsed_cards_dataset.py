@@ -5,12 +5,16 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from bs4 import BeautifulSoup
+from sklearn.model_selection import KFold
 
 class ParsedCardsDataset(Dataset):
-    def __init__(self, csv_path, tokenizer, max_length):
+    def __init__(self, csv_path, tokenizer, max_length, num_folds=5, fold_idx=0, train=True):
         self.data = []
         self.tokenizer = tokenizer
         self.max_length = max_length
+        self.num_folds = num_folds
+        self.fold_idx = fold_idx
+        self.train = train
         
         with open(csv_path, 'r') as file:
             reader = csv.DictReader(file)
@@ -32,12 +36,15 @@ class ParsedCardsDataset(Dataset):
                 for answer in all_answers:
                     gathered_answer.append(answer.text.strip().replace("\xa0", " "))
 
-                # print(" ".join(gathered_answer))
-                # print()
-                # print()
                 self.data.append((question, " ".join(gathered_answer)))
-                # input()
-        
+                
+        self.data = np.array(self.data, dtype=object)                
+        splitter = KFold(n_splits=self.num_folds)
+        for i, (train_index, test_index) in enumerate(splitter.split(self.data)):
+            if i == self.fold_idx:
+                train_data, val_data = self.data[train_index], self.data[test_index]
+                break
+        self.data = train_data if self.train else val_data
         self.data = np.array(self.data)
 
 
@@ -53,7 +60,7 @@ class ParsedCardsDataset(Dataset):
             "passage: " + answer
         ]
         encoded = self.tokenizer(
-            lines, padding=True, truncation=True, 
+            lines, padding="max_length", truncation=True, 
             max_length=self.max_length, return_tensors="pt")
         query_input_ids = encoded["input_ids"][0]
         query_attention_mask = encoded["attention_mask"][0]
