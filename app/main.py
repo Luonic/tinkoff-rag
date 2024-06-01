@@ -8,7 +8,7 @@ from typing import Union
 
 from fastapi import FastAPI
 
-from .models import HTTPValidationError, Request, Response
+from models import HTTPValidationError, Request, Response
 
 app = FastAPI(
     title='Assistant API',
@@ -26,4 +26,4 @@ def assist_assist_post(body: Request) -> Union[Response, HTTPValidationError]:
     """
     Assist
     """
-    pass
+    return Response(text="Hello world")
