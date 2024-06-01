@@ -6,13 +6,16 @@ from __future__ import annotations
 
 from typing import Union
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+from typing import Union
 
-from models import HTTPValidationError, Request, Response
+from models import HTTPValidationError, Request, Response, ResponseWithContext
 
 import torch
 import yaml
 import os
+import asyncio
 from yaml.loader import SafeLoader
 from pathlib import Path
 from rag.rag_utils import *
@@ -35,13 +38,22 @@ TOKENIZER_PATH = RAG_DIR / CONFIG['TOKENIZER_PATH']
 llm = init_llm()
 embeddings = [init_embeddings(RAG_DIR / path, TOKENIZER_PATH, device=torch.device('cuda:0')) for path in RETRIEVAL_MODEL_PATHS]
 retriever = init_retriever(DATA_PATH, embeddings)
-rag_chain = init_rag_chain(prompt, retriever, llm)
+rag_chain = init_multiquery_rag_chain(prompt, multiquery_prompt, retriever, llm)
 
 # Init app
 app = FastAPI(
     title='Assistant API',
     version='0.1.0',
 )
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 500:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error. Please try again later."},
+        )
+    return await request.app.default_exception_handler(request, exc)
 
 
 @app.post(
@@ -50,11 +62,41 @@ app = FastAPI(
     responses={'422': {'model': HTTPValidationError}},
     tags=['default'],
 )
-def assist_assist_post(body: Request) -> Union[Response, HTTPValidationError]:
+async def assist_assist_post(body: Request) -> Union[Response, HTTPValidationError]:
     """
     Assist
     """
     query = body.query
-    result_dict = invoke_rag_chain(rag_chain, query)
+    max_retries = 2
 
-    return result_dict
+    for attempt in range(max_retries + 1):
+        try:
+            result_dict = invoke_multiquery_rag_chain(rag_chain, query, True)
+            return result_dict
+        except Exception as e:
+            if attempt < max_retries:
+                continue
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+@app.post(
+    '/assist_with_context',
+    response_model=ResponseWithContext,
+    responses={'422': {'model': HTTPValidationError}},
+    tags=['default'],
+)
+async def assist_assist_with_context_post(body: Request) -> Union[ResponseWithContext, HTTPValidationError]:
+    """
+    Assist
+    """
+    query = body.query
+    max_retries = 2
+
+    for attempt in range(max_retries + 1):
+        try:
+            result_dict = invoke_multiquery_rag_chain(rag_chain, query, True)
+            return result_dict
+        except Exception as e:
+            if attempt < max_retries:
+                continue
+            raise HTTPException(status_code=500, detail="Internal Server Error")

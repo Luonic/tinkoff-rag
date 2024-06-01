@@ -16,6 +16,12 @@ class Request(BaseModel):
 class Response(BaseModel):
     text: str = Field(..., title='Text')
     links: List[str] = Field(..., title='Links')
+    
+
+class ResponseWithContext(BaseModel):
+    text: str = Field(..., title='Text')
+    links: List[str] = Field(..., title='Links')
+    contexts: List[str] = Field(..., title='Context')
 
 
 class ValidationError(BaseModel):
