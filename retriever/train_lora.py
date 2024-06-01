@@ -19,6 +19,7 @@ from omegaconf import DictConfig
 from torch.multiprocessing import Value
 from peft import get_peft_model
 from metrics.mean_positive_similarity import MeanPositiveSimilarity, MeanPositiveAndNegativeSimilarity
+from metrics.ranking import Ranking
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -90,7 +91,7 @@ def create_evaluator(cfg, model, criterion, metric, device=None):
             loss = criterion(query_logits, passage_logits)
             metric_value = metric(query_logits, passage_logits)
 
-            return {'loss': loss, 'mps': metric_value}
+            return {'loss': loss, 'mps': metric_value, 'query_logits': query_logits, 'passage_logits': passage_logits}
 
     evaluator = Engine(eval_step)
 
@@ -102,6 +103,9 @@ def create_evaluator(cfg, model, criterion, metric, device=None):
 
     mps_metric = Average(output_transform=lambda output: output['mps'])
     mps_metric.attach(evaluator, 'mps')
+    
+    ranking_metric = Ranking(output_transform=lambda output: (output["query_logits"], output["passage_logits"]), device="cpu")
+    ranking_metric.attach(evaluator, 'ranking')
 
     if idist.get_rank():
         ProgressBar().attach(evaluator, output_transform=lambda x: {
@@ -157,7 +161,7 @@ def training(local_rank: int, cfg: DictConfig, best_metric) -> float:
         if idist.get_rank() == 0:
             pprint(state.metrics)
 
-            eval_metric = state.metrics['inv_loss']
+            eval_metric = state.metrics['ranking']
             if eval_metric > best_metric.value:
                 best_metric.value = float(eval_metric)
                 if isinstance(model, (nn.DataParallel, nn.parallel.DistributedDataParallel)):

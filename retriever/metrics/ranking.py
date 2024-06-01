@@ -8,33 +8,37 @@ from ignite.metrics.metric import sync_all_reduce, reinit__is_reduced
 
 class Ranking(Metric):
     def __init__(self, output_transform=lambda x: x, device="cpu"):
-        self._num_correct = None
-        self._num_examples = None
+        self.queries_embeddings = None
+        self.passage_embeddings = None
         super(Ranking, self).__init__(output_transform=output_transform, device=device)
 
     @reinit__is_reduced
     def reset(self):
-        self._num_correct = torch.tensor(0, device=self._device)
-        self._num_examples = 0
+        self.queries_embeddings = []
+        self.passage_embeddings = []
         super(Ranking, self).reset()
 
     @reinit__is_reduced
     def update(self, output):
-        y_pred, y = output[0].detach(), output[1].detach()
-
-        indices = torch.argmax(y_pred, dim=1)
-
-        mask = (y != self.ignored_class)
-        mask &= (indices != self.ignored_class)
-        y = y[mask]
-        indices = indices[mask]
-        correct = torch.eq(indices, y).view(-1)
-
-        self._num_correct += torch.sum(correct).to(self._device)
-        self._num_examples += correct.shape[0]
+        query_emb, passage_emb = output[0].detach().cpu(), output[1].detach().cpu()
+        self.queries_embeddings.append(query_emb)
+        self.passage_embeddings.append(passage_emb)
 
     @sync_all_reduce("_num_examples", "_num_correct:SUM")
     def compute(self):
-        if self._num_examples == 0:
+        if len(self.queries_embeddings == 0) or len(self.passage_embeddings) == 0:
             raise NotComputableError('Ranking must have at least one example before it can be computed.')
-        return self._num_correct.item() / self._num_examples
+
+        self.queries_embeddings = torch.concat(self.queries_embeddings, dim=0)
+        self.queries_embeddings = torch.nn.functional.normalize(self.queries_embeddings, p=2, dim=1)
+        
+        self.passage_embeddings = torch.concat(self.passage_embeddings, dim=0)
+        self.passage_embeddings = torch.nn.functional.normalize(self.passage_embeddings_embeddings, p=2, dim=1)
+        
+        cosine_scores = self.queries_embeddings @ self.passage_embeddings.transpose(-2, -1)
+        indices = torch.argmax(cosine_scores, dim=1)
+
+        labels = torch.arange(len(indices), device="cpu")
+        score = torch.eq(indices, labels).to(torch.float32).sum() / len(indices)
+        
+        return score
