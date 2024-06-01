@@ -1,3 +1,27 @@
+# cache
+**__pycache__
+
+# datasets
+
+rag/data/generated_questions
+rag/data/train_dataset
+rag/data/data_manipulation.ipynb
+rag/data/dataset.json
+rag/data/train_dataset.json
+
+# trash
+rag/model/llm_langchain.py
+rag/model/llm_langchain_2.py
+rag/model/perplexity.py
+rag/LLM_tests.ipynb
+
+# models
+rag/models_dir
+
+# logs
+rag/tensorboard_logs
+
+
 # Mac OS stuff
 .DS_Store
 
