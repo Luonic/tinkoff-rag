@@ -1,0 +1,108 @@
+# defaults:
+# - override hydra/sweeper: ax
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+  job:
+    env_set:
+      # TRANSFORMERS_OFFLINE: "1"
+      HYDRA_FULL_ERROR: "1"
+    chdir: true
+    # sweeper:
+    #   ax_config:
+    #     max_trials: 30
+    #     experiment:
+    #       minimize: false
+    #     early_stop:
+    #       max_epochs_without_improvement: 10
+    #     is_noisy: True
+    #     params:
+    #       train.lr:
+    #         type: range
+    #         bounds: [1.0e-05, 4.0e-03]
+
+distributed:
+  backend: nccl
+  nproc_per_node: 2
+
+tokenizer:
+  _target_: transformers.AutoTokenizer.from_pretrained
+  pretrained_model_name_or_path: ${model.pretrained_model_name_or_path}
+  use_fast: false
+
+lora_config:
+  _target_: peft.LoraConfig
+  _convert_: all
+  r: 8
+  lora_alpha: 16
+  bias: "none"
+  task_type: TaskType.FEATURE_EXTRACTION
+  target_modules: all-linear
+  use_dora: false
+        
+
+model:
+  _target_: transformers.AutoModel.from_pretrained
+  _convert_: all
+  pretrained_model_name_or_path: "intfloat/multilingual-e5-base"
+  add_pooling_layer: false
+
+train:
+  all_folds: true
+  lr: 1e-4
+  grad_accumulation_steps: 1 # 10
+  max_epochs: 15
+  optimizer:
+    _target_: torch.optim.AdamW
+    lr: ${train.lr} # 4.0e-05
+    weight_decay: 0.01
+  scheduler:
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    max_lr: ${train.optimizer.lr}
+    epochs: ${train.max_epochs}
+    pct_start: 0.1
+    anneal_strategy: cos
+    cycle_momentum: false
+    div_factor: 25.0
+    final_div_factor: 100.0
+    three_phase: false
+  loss:
+    _target_: losses.wandb_info_nce.InfoNCE
+    temperature: 0.01
+    reduction: mean
+
+
+train_dataloader:
+  _target_: ignite.distributed.auto_dataloader
+  dataset:
+    _target_: datasets.generated_questions.GeneratedDataset
+    jsons_dir: "../../data/generated_questions"
+    tokenizer: ${tokenizer}
+    max_length: 512
+    num_folds: 5
+    fold_idx: 0
+    train: true
+  shuffle: true
+  num_workers: 8
+  batch_size: 44 # 48 with vanilla LoRa # Batch size on single GPU in multi-GPU setup equals batch_size/n_gpu
+  drop_last: true
+  persistent_workers: True
+
+val_dataloader:
+  _target_: ignite.distributed.auto_dataloader
+  dataset:
+    _target_: datasets.generated_questions.GeneratedDataset
+    jsons_dir: ${train_dataloader.dataset.jsons_dir}
+    tokenizer: ${tokenizer}
+    max_length: ${train_dataloader.dataset.max_length}
+    num_folds: ${train_dataloader.dataset.num_folds}
+    fold_idx: ${train_dataloader.dataset.fold_idx}
+    train: false
+  num_workers: 16
+  batch_size: ${train_dataloader.batch_size} # Batch size on single GPU in multi-GPU setup equals batch_size/n_gpu
+  drop_last: true
+  persistent_workers: True
