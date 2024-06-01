@@ -1,5 +1,7 @@
+chromadb==0.4.24
+rank_bm25==0.2.2
 flash-attn==2.5.8
-protobuf==5.27.0
+protobuf==4.25.2
 sentencepiece==0.2.0
 peft==0.11.1
 beautifulsoup4==4.12.3

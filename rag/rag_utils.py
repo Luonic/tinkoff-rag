@@ -1,4 +1,5 @@
 import os
+import gc
 from typing import List
 from operator import itemgetter
 
@@ -18,7 +19,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.load import dumps, loads
 
-from utils import *
+from rag.utils import *
 
 
 # os.environ['LANGCHAIN_TRACING_V2'] = 'true'
@@ -80,10 +81,10 @@ def init_retriever(data_path: str, embedding_models: list):
     splits = text_splitter.split_documents(docs)
     
     retrievers = []
-    bm25_retriever = BM25Retriever.from_documents(
-        documents=splits,
-    )
-    bm25_retriever.k = 2
+    # bm25_retriever = BM25Retriever.from_documents(
+    #     documents=splits,
+    # )
+    # bm25_retriever.k = 2
     # retrievers.append(bm25_retriever)
     
     for embedding_model in embedding_models:
@@ -99,6 +100,7 @@ def init_retriever(data_path: str, embedding_models: list):
     ensemble_retriever = EnsembleRetriever(
         retrievers=retrievers, weights=[1 / count_retrievers] * count_retrievers
     )
+    gc.collect()
     return ensemble_retriever
 
     

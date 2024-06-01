@@ -1,4 +1,5 @@
 import torch
+import gc
 import torch.nn.functional as F
 
 from typing import List
@@ -78,4 +79,5 @@ def init_embeddings(model_path, tokenizer_path, device):
         
     model.eval()
     hf_embeddings = MyEmbeddings(model, tokenizer)
+    gc.collect()
     return hf_embeddings

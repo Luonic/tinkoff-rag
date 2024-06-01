@@ -1,7 +1,13 @@
+import os
+
+from pathlib import Path
 from transformers import AutoTokenizer
 
 
-TOKENIZER_PATH = 'e5-base-tokenizer'
+CURRENT_DIR = Path(os.getcwd())
+RAG_DIR = CURRENT_DIR / 'rag'
+
+TOKENIZER_PATH = RAG_DIR / 'e5-base-tokenizer'
 tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH)
 
 
