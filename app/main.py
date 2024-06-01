@@ -10,6 +10,34 @@ from fastapi import FastAPI
 
 from models import HTTPValidationError, Request, Response
 
+import torch
+import yaml
+import os
+from yaml.loader import SafeLoader
+from pathlib import Path
+from rag.rag_utils import *
+from rag.embedding_model import init_embeddings
+
+
+CURRENT_DIR = Path(os.getcwd())
+RAG_DIR = CURRENT_DIR / 'rag'
+
+# Load config
+CONFIG_FILENAME = 'config.yaml'
+CONFIG = yaml.load(open(RAG_DIR / CONFIG_FILENAME, 'r'), Loader=SafeLoader)
+
+# Load parameters
+RETRIEVAL_MODEL_PATHS = CONFIG['RETRIEVAL_MODEL_PATHS']
+DATA_PATH = RAG_DIR / CONFIG['DATA_PATH']
+TOKENIZER_PATH = RAG_DIR / CONFIG['TOKENIZER_PATH']
+
+# Init all
+llm = init_llm()
+embeddings = [init_embeddings(RAG_DIR / path, TOKENIZER_PATH, device=torch.device('cuda:0')) for path in RETRIEVAL_MODEL_PATHS]
+retriever = init_retriever(DATA_PATH, embeddings)
+rag_chain = init_rag_chain(prompt, retriever, llm)
+
+# Init app
 app = FastAPI(
     title='Assistant API',
     version='0.1.0',
@@ -27,7 +55,6 @@ def assist_assist_post(body: Request) -> Union[Response, HTTPValidationError]:
     Assist
     """
     query = body.query
-    return {
-        "text": query,
-        "links": ["https://www.google.com/search"]
-    }
+    result_dict = invoke_rag_chain(rag_chain, query)
+
+    return result_dict
