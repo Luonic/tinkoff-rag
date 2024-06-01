@@ -15,9 +15,10 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
+
 def clear_chat_history():
     st.session_state.messages = [{"role": "assistant", "content": starting_message}]
-st.sidebar.button('Clear Chat History', on_click=clear_chat_history)
+st.sidebar.button('Очистить историю чата', on_click=clear_chat_history)
 
 def generate_response(prompt_input):
     response = requests.post('http://79.120.8.93:31000/assist', json={"query": prompt_input})
@@ -35,8 +36,7 @@ if prompt := st.chat_input("Введите ваш вопрос"):
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 response = generate_response(prompt)
-                placeholder = st.empty()
-                full_respone = response.json()['text'] + '  \nСсылки:  \n' + '  \n'.join(response.json()['links'])
-                placeholder.write(full_respone)
-        message = {"role": "assistant", "content": placeholder}
-        st.session_state.messages.append(message)
+                full_response = response.json()['text'] + '  \nСсылки:  \n' + '  \n'.join(response.json()['links'])
+                st.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+    
