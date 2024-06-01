@@ -26,4 +26,8 @@ def assist_assist_post(body: Request) -> Union[Response, HTTPValidationError]:
     """
     Assist
     """
-    return Response(text="Hello world")
+    query = body.query
+    return {
+        "text": query,
+        "links": ["https://www.google.com/search"]
+    }

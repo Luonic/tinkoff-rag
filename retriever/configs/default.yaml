@@ -55,7 +55,7 @@ train:
   all_folds: true
   lr: 1e-4
   grad_accumulation_steps: 1 # 10
-  max_epochs: 30
+  max_epochs: 15
   optimizer:
     _target_: torch.optim.AdamW
     lr: ${train.lr} # 4.0e-05
@@ -79,8 +79,8 @@ train:
 train_dataloader:
   _target_: ignite.distributed.auto_dataloader
   dataset:
-    _target_: datasets.tinkoff_qna_dataset.JSONDataset
-    json_path: "../../data/dataset.json"
+    _target_: datasets.generated_questions.GeneratedDataset
+    jsons_dir: "../../data/generated_questions"
     tokenizer: ${tokenizer}
     max_length: 512
     num_folds: 5
@@ -95,8 +95,8 @@ train_dataloader:
 val_dataloader:
   _target_: ignite.distributed.auto_dataloader
   dataset:
-    _target_: datasets.tinkoff_qna_dataset.JSONDataset
-    json_path: ${train_dataloader.dataset.json_path}
+    _target_: datasets.generated_questions.GeneratedDataset
+    jsons_dir: ${train_dataloader.dataset.jsons_dir}
     tokenizer: ${tokenizer}
     max_length: ${train_dataloader.dataset.max_length}
     num_folds: ${train_dataloader.dataset.num_folds}

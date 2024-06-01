@@ -39,7 +39,7 @@ class ParsedCardsDataset(Dataset):
                 self.data.append((question, " ".join(gathered_answer)))
                 
         self.data = np.array(self.data, dtype=object)                
-        splitter = KFold(n_splits=self.num_folds)
+        splitter = KFold(n_splits=self.num_folds, shuffle=True, random_state=0)
         for i, (train_index, test_index) in enumerate(splitter.split(self.data)):
             if i == self.fold_idx:
                 train_data, val_data = self.data[train_index], self.data[test_index]
