@@ -157,7 +157,7 @@ def training(local_rank: int, cfg: DictConfig, best_metric) -> float:
         if idist.get_rank() == 0:
             pprint(state.metrics)
 
-            eval_metric = state.metrics['mps']
+            eval_metric = state.metrics['inv_loss']
             if eval_metric > best_metric.value:
                 best_metric.value = float(eval_metric)
                 if isinstance(model, (nn.DataParallel, nn.parallel.DistributedDataParallel)):

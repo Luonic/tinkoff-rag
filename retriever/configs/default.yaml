@@ -55,7 +55,7 @@ train:
   all_folds: true
   lr: 1e-4
   grad_accumulation_steps: 1 # 10
-  max_epochs: 50
+  max_epochs: 30
   optimizer:
     _target_: torch.optim.AdamW
     lr: ${train.lr} # 4.0e-05
