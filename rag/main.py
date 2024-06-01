@@ -1,17 +1,16 @@
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from torch.nn.parallel import DistributedDataParallel as DDP
+from peft import LoraConfig, get_peft_model
 
 from model.config import Config
 from model.setup import setup_ddp, cleanup_ddp
-from model.dataset import load_data
-from datasets.dataset import LLMDataset
+from data.dataset import load_train_test_data
 from model.train import train
-from model.profile import train_profiling
-from peft import LoraConfig, get_peft_model
+from model.eval import evaluate
+
 
 def main():
     config = Config()
@@ -43,7 +42,7 @@ def main():
         target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
         lora_config = LoraConfig(
             r=config.lora_dimention,  
-            lora_alpha=32,  
+            lora_alpha=16,  
             target_modules=target_modules, 
             lora_dropout=0.1, 
             bias="none", 
@@ -63,24 +62,29 @@ def main():
     model = model.to(device)
     model = DDP(model, device_ids=[config.local_rank], output_device=config.local_rank)
 
-    # dataset = load_data(config, tokenizer)
-    dataset = LLMDataset(path_to_data="data/internal_all.csv", tokenizer=tokenizer, 
-                         max_length=config.max_length, num_samples=config.num_texts)
-    sampler = DistributedSampler(dataset, num_replicas=config.world_size, rank=config.rank)
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, sampler=sampler)
+    train_dataset, test_dataset = load_train_test_data(config.path_to_data, tokenizer, max_length=config.max_length, 
+                                                       test_size=config.test_size, num_samples=config.num_texts)
+    
+    train_sampler = DistributedSampler(train_dataset, num_replicas=config.world_size, rank=config.rank)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=False, sampler=train_sampler)
 
-    if config.profile:
-        train_profiling(model, dataloader, device, config)
-    else:
-        train(model, dataloader, device, config)
+    # test_sampler = DistributedSampler(test_dataset, num_replicas=config.world_size, rank=config.rank)
+    test_dataloader = DataLoader(test_dataset, batch_size=config.test_batch_size, shuffle=False) # sampler=test_sampler
+
+    for batch in train_dataloader:
+        print(batch["input_ids"].size())
+        break
+
+    for batch in train_dataloader:
+        print(batch["input_ids"].size())
+        break
+
+    train(model, train_dataloader, test_dataloader, tokenizer, device, config)
     cleanup_ddp()
 
 if __name__ == "__main__":
     main()
 
 """
-git remote add origin https://Konductor000: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@github.com/Konductor000/https://github.com/Luonic/tinkoff-rag.git
-git remote set-url origin git@github.com:Konductor000/https://github.com/Luonic/tinkoff-rag.git
-git remote set-url origin https://Konductor000@github.com/Luonic/tinkoff-rag.git
-git remote set-url origin https://Konductor000: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@github.com/Luonic/tinkoff-rag.git
+torchrun --nnodes=1 --nproc_per_node=1 --node_rank=0 --master_addr=192.168.101.4 --master_port=12345 main.py
 """
