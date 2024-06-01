@@ -20,8 +20,6 @@ def clear_chat_history():
     st.session_state.messages = [{"role": "assistant", "content": starting_message}]
 st.sidebar.button('Очистить историю чата', on_click=clear_chat_history)
 
-selected_model = st.sidebar.selectbox('Выбор модели', ['API', 'local'])
-
 def generate_response(prompt_input):
     response = requests.post('http://79.120.8.93:31000/assist', json={"query": prompt_input})
 
