@@ -2,7 +2,6 @@ import os
 import gc
 from typing import List
 from operator import itemgetter
-from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -22,10 +21,6 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain.load import dumps, loads
 
 from rag.utils import *
-
-
-CURRENT_DIR = Path(os.getcwd())
-RAG_DIR = CURRENT_DIR / 'rag'
 
 
 prompt = ChatPromptTemplate.from_messages([
@@ -94,7 +89,6 @@ def init_retriever(data_path: str, embedding_models: list):
     
     for i, embedding_model in enumerate(embedding_models):
         vectorstore = Chroma.from_documents(documents=splits, 
-                                            persist_directory=str(RAG_DIR / f'vector_store_{i}/'),
                                             embedding=embedding_model)
         chroma_retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
         
