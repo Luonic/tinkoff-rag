@@ -17,7 +17,7 @@ def count_tokens(text):
 
 def format_docs_with_score(docs):
     print(len(docs))
-    concateneted_docs_string = "\n\n".join('\n'.join([f'Id источника: {i}', f'Релевантность: {score}', doc.metadata['title'], doc.page_content]) for i, (doc, score) in enumerate(docs))
+    concateneted_docs_string = "\n\n".join('\n'.join([f'Id источника: {i}', doc.metadata['title'], doc.page_content]) for i, (doc, score) in enumerate(docs))
     print(concateneted_docs_string)
     print()
     return concateneted_docs_string
