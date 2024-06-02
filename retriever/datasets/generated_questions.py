@@ -50,7 +50,7 @@ class GeneratedDataset(Dataset):
                 
         self.data = data
 
-        self.data = self.data[:1000]
+        # self.data = self.data[:1000]
         
 
 
