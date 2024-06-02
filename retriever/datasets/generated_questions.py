@@ -33,6 +33,7 @@ class GeneratedDataset(Dataset):
                     
             cards.append((queries, passage))
 
+
         self.data = np.array(cards, dtype=object)                
         splitter = KFold(n_splits=self.num_folds, shuffle=True, random_state=0)
         for i, (train_index, test_index) in enumerate(splitter.split(self.data)):
@@ -48,6 +49,8 @@ class GeneratedDataset(Dataset):
                 data.append((query, sample[1]))
                 
         self.data = data
+
+        self.data = self.data[:1000]
         
 
 

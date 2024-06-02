@@ -50,7 +50,7 @@ model:
   _convert_: all
   pretrained_model_name_or_path: "intfloat/multilingual-e5-base"
   add_pooling_layer: false
-  attn_implementation: flash_attention_2
+  # attn_implementation: flash_attention_2
 
 train:
   all_folds: true
@@ -89,7 +89,7 @@ train_dataloader:
     train: true
   shuffle: true
   num_workers: 8
-  batch_size: 44 # 48 with vanilla LoRa # Batch size on single GPU in multi-GPU setup equals batch_size/n_gpu
+  batch_size: 44 # 44 # 48 with vanilla LoRa # Batch size on single GPU in multi-GPU setup equals batch_size/n_gpu
   drop_last: true
   persistent_workers: True
 

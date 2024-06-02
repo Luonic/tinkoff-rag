@@ -19,7 +19,7 @@ from omegaconf import DictConfig
 from torch.multiprocessing import Value
 from peft import get_peft_model
 from metrics.mean_positive_similarity import MeanPositiveSimilarity, MeanPositiveAndNegativeSimilarity
-from metrics.ranking import Ranking
+from metrics.ranking_top_n import Ranking
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -69,7 +69,7 @@ def create_trainer(cfg, model, criterion, optimizer):
     return trainer
 
 
-def create_evaluator(cfg, model, criterion, metric, device=None):
+def create_evaluator(cfg, model, criterion, device=None):
     if device is None:
         device = idist.device()
 
@@ -89,9 +89,8 @@ def create_evaluator(cfg, model, criterion, metric, device=None):
                 passage_logits = average_pool(passage_logits, passage_attention_mask)
                 
             loss = criterion(query_logits, passage_logits)
-            metric_value = metric(query_logits, passage_logits)
 
-            return {'loss': loss, 'mps': metric_value, 'query_logits': query_logits, 'passage_logits': passage_logits}
+            return {'loss': loss, 'query_logits': query_logits, 'passage_logits': passage_logits}
 
     evaluator = Engine(eval_step)
 
@@ -101,10 +100,7 @@ def create_evaluator(cfg, model, criterion, metric, device=None):
     inv_loss_metric = Average(output_transform=lambda output: -output['loss'])
     inv_loss_metric.attach(evaluator, 'inv_loss')
 
-    mps_metric = Average(output_transform=lambda output: output['mps'])
-    mps_metric.attach(evaluator, 'mps')
-    
-    ranking_metric = Ranking(output_transform=lambda output: (output["query_logits"], output["passage_logits"]), device="cpu")
+    ranking_metric = Ranking(k=3, output_transform=lambda output: (output["query_logits"], output["passage_logits"]), device="cpu")
     ranking_metric.attach(evaluator, 'ranking')
 
     if idist.get_rank():
@@ -131,12 +127,11 @@ def training(local_rank: int, cfg: DictConfig, best_metric) -> float:
         cfg.train.scheduler, optimizer=optimizer, steps_per_epoch=len(train_dataloader))
 
     criterion = instantiate(cfg.train.loss)
-    metric = MeanPositiveAndNegativeSimilarity()
 
     # Setup model trainer and evaluator
     trainer = create_trainer(
         cfg=cfg, model=model, optimizer=optimizer, criterion=criterion)
-    evaluator = create_evaluator(cfg, model, criterion, metric)
+    evaluator = create_evaluator(cfg, model, criterion)
 
     # @trainer.on(Events.EPOCH_COMPLETED)
     # def unfreeze():
